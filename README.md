@@ -21,3 +21,7 @@ python -c "import socket;s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.con
 Stop server :
 
 pkill -f pyftpdlib
+
+or
+
+CTRL + C
