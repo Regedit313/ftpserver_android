@@ -1,5 +1,7 @@
 # ftpserver_android
 
+Start server :
+
 pkg update -y
 
 pkg install python -y
