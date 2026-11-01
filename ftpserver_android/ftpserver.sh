@@ -3,50 +3,157 @@
 
 cd "$(dirname "$0")" || exit 1
 
-clear
+APP_DIR="$(pwd -P)"
+FTP_DIR="/storage/emulated/0/FTPshare"
 
-echo
-echo "ftpserver_android"
-echo
-
-echo "Creating FTPshare folder..."
-mkdir -p "/storage/emulated/0/FTPshare"
-
-echo
-echo "Checking installation..."
-echo
-
-if ! command -v python >/dev/null 2>&1; then
-    echo "Python is not installed."
-    echo "Run Setup / Update first."
+pause_screen() {
     echo
-    read -p "Press Enter to continue..."
-    exit 1
-fi
+    read -r -p "Press Enter to continue..."
+}
 
-if ! python -c "import pyftpdlib" >/dev/null 2>&1; then
-    echo "pyftpdlib is not installed."
-    echo "Run Setup / Update first."
+check_installation() {
+    command -v python >/dev/null 2>&1 || return 1
+
+    python -c 'import pyftpdlib' >/dev/null 2>&1 || return 1
+
+    return 0
+}
+
+run_setup() {
+    if [ ! -f "$APP_DIR/ftpserver_setup.sh" ]; then
+        echo
+        echo "Error: setup file is missing:"
+        echo "$APP_DIR/ftpserver_setup.sh"
+        pause_screen
+        return 1
+    fi
+
+    bash "$APP_DIR/ftpserver_setup.sh"
+}
+
+check_storage() {
+    if [ ! -d "$HOME/storage/shared" ]; then
+        echo
+        echo "Setting up Android storage..."
+        echo "If Android asks for permission, please allow it."
+        echo
+
+        if command -v termux-setup-storage >/dev/null 2>&1; then
+            termux-setup-storage
+        else
+            echo "Warning: termux-setup-storage command was not found."
+        fi
+    fi
+}
+
+initial_check() {
+    clear
+
     echo
-    read -p "Press Enter to continue..."
-    exit 1
-fi
+    echo "ftpserver_android"
+    echo
+    echo "Checking installation..."
 
-echo "Installation OK."
-echo
+    if ! check_installation; then
+        echo
+        echo "Python or pyftpdlib is missing."
+        echo "Running first-time setup automatically..."
+        echo
 
-echo "Local IP address:"
+        if ! run_setup; then
+            echo
+            echo "Automatic setup did not complete."
+            echo "You can retry with option 9 when Internet is available."
+            pause_screen
+        fi
+    else
+        echo "Installation OK."
+    fi
 
-python -c "import socket;s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.connect(('8.8.8.8',80));print(s.getsockname()[0]);s.close()"
+    check_storage
 
-echo
-echo "FTP port: 2121"
-echo
-echo "Shared folder:"
-echo "/storage/emulated/0/FTPshare"
-echo
-echo "Press CTRL+C to stop the server."
-echo
+    mkdir -p "$FTP_DIR" 2>/dev/null || true
+}
 
-python -m pyftpdlib -p 2121 -w -d "/storage/emulated/0/FTPshare"
+start_server() {
+    clear
 
+    echo
+    echo "ftpserver_android"
+    echo
+
+    if ! check_installation; then
+        echo "Python or pyftpdlib is not installed."
+        echo "Run Setup / Update (option 9)."
+        pause_screen
+        return
+    fi
+
+    if ! mkdir -p "$FTP_DIR"; then
+        echo "Error: cannot create FTPshare folder."
+        echo "Check Android storage permission."
+        pause_screen
+        return
+    fi
+
+    echo "Local IP address:"
+
+    python -c "import socket;s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.connect(('8.8.8.8',80));print(s.getsockname()[0]);s.close()" \
+        2>/dev/null || echo "IP unavailable (check local network)."
+
+    echo
+    echo "FTP port: 2121"
+    echo
+    echo "Shared folder:"
+    echo "$FTP_DIR"
+    echo
+    echo "Press CTRL+C to stop the FTP server."
+    echo
+
+    exec python -m pyftpdlib -p 2121 -w -d "/storage/emulated/0/FTPshare"
+}
+
+initial_check
+
+while true; do
+    clear
+
+    echo
+    echo "ftpserver_android"
+    echo
+    echo
+    echo "1) Start FTP server"
+    echo
+    echo
+    echo "9) Run Setup / Update (required before first use)"
+    echo
+    echo "0) Exit"
+    echo
+    echo
+
+    read -r -p "Choose what to do: " choice
+
+    case "$choice" in
+
+        1)
+            start_server
+            ;;
+
+        9)
+            clear
+            run_setup
+            ;;
+
+        0)
+            clear
+            exit 0
+            ;;
+
+        *)
+            echo
+            echo "Invalid choice."
+            sleep 1
+            ;;
+
+    esac
+done
