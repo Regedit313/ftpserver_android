@@ -113,6 +113,52 @@ start_server() {
     exec python -m pyftpdlib -p 2121 -w -d "/storage/emulated/0/FTPshare"
 }
 
+stop_server() {
+    clear
+
+    echo
+    echo "ftpserver_android"
+    echo
+    echo "========================================"
+    echo "Stop FTP server"
+    echo "========================================"
+    echo
+    echo "WARNING!"
+    echo
+    echo "Active FTP transfers may be interrupted."
+    echo
+    echo "1) Confirm and stop"
+    echo
+    echo "0) Cancel"
+    echo
+
+    read -r -p "Choose what to do: " confirm
+
+    case "$confirm" in
+
+        1)
+            echo
+            echo "Stopping FTP server..."
+            echo
+
+            if pkill -TERM -f 'python -m pyftpdlib'; then
+                echo "FTP server stop signal sent."
+            else
+                echo "No FTP server found or stop failed."
+            fi
+
+            pause_screen
+            ;;
+
+        *)
+            echo
+            echo "Cancelled."
+            pause_screen
+            ;;
+
+    esac
+}
+
 initial_check
 
 while true; do
@@ -123,6 +169,8 @@ while true; do
     echo
     echo
     echo "1) Start FTP server"
+    echo
+    echo "2) Stop FTP server"
     echo
     echo
     echo "9) Run Setup / Update (required before first use)"
@@ -137,6 +185,10 @@ while true; do
 
         1)
             start_server
+            ;;
+
+        2)
+            stop_server
             ;;
 
         9)
